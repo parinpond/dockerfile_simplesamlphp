@@ -75,24 +75,25 @@ RUN docker-php-ext-install sockets
 RUN a2enmod rewrite headers
 
 # install the php memcache extension
-RUN set -x \
-	&& cd /tmp \
-	&& curl -sSL -o php7.zip https://github.com/websupport-sk/pecl-memcache/archive/php7.zip \
-	&& unzip php7 \
-	&& cd pecl-memcache-php7 \
-	&& /usr/local/bin/phpize \
-	&& ./configure --with-php-config=/usr/local/bin/php-config \
-	&& make \
-	&& make install \
-	&& echo "extension=memcache.so" > /usr/local/etc/php/conf.d/docker-php-ext-memcache.ini \
-	&& rm -rf /tmp/pecl-memcache-php7 php7.zip
+RUN apt-get install -y libmemcached-dev unzip
+RUN apt-get install --no-install-recommends -y zlibc zlib1g
+RUN docker-php-ext-configure zip
+RUN docker-php-ext-install zip
+
+RUN mkdir -p /usr/src/php/ext/memcached
+WORKDIR /usr/src/php/ext/memcached
+RUN wget https://github.com/php-memcached-dev/php-memcached/archive/v3.1.3.zip; unzip /usr/src/php/ext/memcached/v3.1.3.zip
+RUN mv /usr/src/php/ext/memcached/php-memcached-3.1.3/* /usr/src/php/ext/memcached/
+
+RUN docker-php-ext-configure memcached && docker-php-ext-install memcached 
     
 RUN a2enmod ssl && a2enmod rewrite
 RUN mkdir -p /etc/apache2/ssl
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
+RUN a2ensite default-ssl
 
-COPY ./ssl/*.pem /etc/apache2/ssl/
-COPY ./apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY ./ssl/* /etc/apache2/ssl/
+COPY ./apache/* /etc/apache2/sites-available/
 
 EXPOSE 80
 EXPOSE 443
